@@ -18,3 +18,5 @@ There is a lot of tools on this tool-kit:
 Don't hesitate to contact me if you want to help me to improve this addon or if you found a but.
 
 e-mail : lucasbonvin@hotmail.com
+
+Last thing I speak french so a lot of comment are also in French.
