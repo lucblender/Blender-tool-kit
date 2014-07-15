@@ -15,7 +15,7 @@ There is a lot of tools on this tool-kit:
         Possibility to render all scenes or selected scenes
         Other useful shortcut already implemented in blender
 
-Don't hesitate to contact me if you want to help me to improve this addon or if you found a but.
+Don't hesitate to contact me if you want to help me to improve this addon or if you found a bug.
 
 e-mail : lucasbonvin@hotmail.com
 
