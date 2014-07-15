@@ -2,7 +2,7 @@ bl_info = {
     "name": "Tool Kit",
     "description": "Useful Tools",
     "author": "lucblender",
-    "version": (1, '9_beta'),
+    "version": (1, '10_beta'),
     "blender": (2, 69, 0),
     "location": "Left UI",
     "warning": "", # used for warning icon and text in addons 
@@ -20,7 +20,7 @@ from bpy.types import Operator, AddonPreferences, Panel, Menu
 tab=[]  #tableau auquel sera inclu les objets utilisant un materiel
 #originNbrScene=len(bpy.data.scenes)
 
-global FormatItem, exception_number, maximise_minimase, maximise_minimase_Mat,stop,checked_render, animation_state
+global FormatItem, maximise_minimase, maximise_minimase_Mat,stop,checked_render, animation_state, Exception_materials
 
 animation_state = True
 
@@ -28,13 +28,13 @@ checked_render = False  # permet de savoir si le rendu ce fait en mode checked r
 stop = True #permet de savoir quand un rendu est fini
 maximise_minimase = True
 maximise_minimase_Mat = True
-exception_number = 1
 
 FormatItem=[('H264 1440*1080', 'H264 4/3 HD1080', 'H264 1440*1080'), 
                  ('PNG 800*600', 'PNG 4/3 LowRes 600', 'PNG 800*600'),
 				 ('PNG 1920*1080', 'PNG Full HD', 'PNG 1920*1080'),
 				 ('PNG 1280*720', 'PNG HD 720', 'PNG 1280*720')]
-                 
+
+Exception_materials = [('Material','Material','Material')]                 
                  
 def MaterialCheck ():
     scn = bpy.data.scenes[0]
@@ -187,6 +187,7 @@ class UIPanel(bpy.types.Panel):
         layout.template_reports_banner()
         layout.template_running_jobs()   
         
+        
         if preferences.tool_active_object_material==False and\
             preferences.tool_add_new_scene==False and\
             preferences.tool_change_format_file==False and\
@@ -257,36 +258,24 @@ class UIPanel(bpy.types.Panel):
             layout.label(text="Replace 'double' material")
             box = layout.box()
             box.operator("clean.material",icon = 'MATERIAL')
-            box.label('Exceptions materials')
-            global exception_number
+            box.label('Exceptions materials, be carefull only selected Material are Exception')
             
-            if exception_number >= len(bpy.data.materials): #si le nombre d'exception de materiaux est plus élevé que le nbre de matériaux
-                exception_number = len(bpy.data.materials)  #norme le nombre d'exception au nbre de matériaux
-                
-            if exception_number<=0: #si le nbre d'exception est =0 ou plus petit
-                exception_number = 0    #norme le nbr d'exception à 0
-                box.label("No exception material", icon='INFO') #si pas d'exception -> info
-                
-            for i in range(0,exception_number):     
-                box.prop(bpy.data.materials[i], 'MaterialException', text='Exception n°'+str(i))  # affichage dynamique des exception
-                ob = bpy.context.active_object
-                
-            if exception_number >=len(bpy.data.materials):
-                box.label("Could not have more exception than material", icon='ERROR')   #prévient que nbr d'exception max atteint  
+            row=box.row()
+            row = row.column(align=True)
             
-            split = box.row(align = True)
-            col = split. column()        
-
-            if exception_number >=len(bpy.data.materials):
-                col.enabled = False
-                col.operator("add.exception")
-            else:    
-                col.enabled = True
-                col.operator("add.exception")  
+            row.prop(bpy.context.scene,'ExceptionMaterials')
+                 
+            if len(bpy.context.scene.ExceptionMaterials)==0: #si le nbre d'exception est =0 
+                row.label("No exception material", icon='INFO') #si pas d'exception -> info
+                   
+            row.prop(bpy.context.scene, 'MaterialException',icon='OUTLINER_DATA_FONT',text='')  # affichage dynamique des exception
             
-            col = split.column()
-            col.enabled = True
-            col.operator("remove.exception")    
+            row.separator()
+            
+            row = box.row(align = True)  
+            
+            row.operator("add.exception")  
+            row.operator("remove.exception")    
    
         
         if preferences.tool_font_cleaning == True:
@@ -510,12 +499,7 @@ class CleanMaterialButton(bpy.types.Operator):
  
     def execute(self, context):      
     
-        exception = []
-                
-        global exception_number
-        
-        for i in range(0,exception_number):
-            exception.append(bpy.data.materials[i].MaterialException)
+        exception = bpy.context.scene.ExceptionMaterials 
         
         for obj in bpy.data.objects:        #pour tous les objets
             for slt in obj.material_slots:  #pour touts les materiaux de la scene
@@ -628,8 +612,11 @@ class AddException(bpy.types.Operator):
  
     def execute(self, context):   
         
-        global exception_number
-        exception_number=exception_number+1     #incrémente exception_number => sert à mettre x exception
+        global Exception_materials
+        
+        Exception_materials.append((bpy.context.scene.MaterialException,bpy.context.scene.MaterialException,bpy.context.scene.MaterialException))
+        bpy.types.Scene.ExceptionMaterials = bpy.props.EnumProperty(items=Exception_materials,options={'ENUM_FLAG'})
+        
            
 
 
@@ -642,10 +629,15 @@ class RemoveException(bpy.types.Operator):
  
     def execute(self, context):   
         
-        global exception_number
-        exception_number=exception_number-1     #décrémente exception_number => sert à mettre x exception
-           
-
+        global Exception_materials
+        
+        try:
+            Exception_materials.remove((bpy.context.scene.MaterialException,bpy.context.scene.MaterialException,bpy.context.scene.MaterialException))
+        except:
+             self.report({'ERROR'},('No exception material named : '+ str(bpy.context.scene.MaterialException)))        
+        bpy.types.Scene.ExceptionMaterials = bpy.props.EnumProperty(items=Exception_materials,options={'ENUM_FLAG'})
+        
+      
 
         return{'FINISHED'}     
      
@@ -830,10 +822,11 @@ def register(): #fonction de registration
            
     bpy.utils.register_module(__name__) #registre les classes
     bpy.types.Scene.RenderTrue = bpy.props.BoolProperty(default=True)   #initialise scene.RenderTrue
-    bpy.types.Material.MaterialException = bpy.props.StringProperty(default='Exception')    #initialise material.MaterialException
+    bpy.types.Scene.MaterialException = bpy.props.StringProperty(default='Material.001')    #initialise material.MaterialException
     bpy.types.Scene.NewRenderPath = bpy.props.StringProperty(default='C:',subtype='DIR_PATH')  
     bpy.types.Scene.AddRemoveRenderPath = bpy.props.StringProperty(default='High_resolution')  
     bpy.types.Scene.FormatFile = bpy.props.EnumProperty(items=FormatItem, default='H264 1440*1080')
+    bpy.types.Scene.ExceptionMaterials = bpy.props.EnumProperty(items=Exception_materials,options={'ENUM_FLAG'})
     bpy.types.Scene.AllFont = bpy.props.EnumProperty(items=AllFont)
  
 def unregister():   #fonction de dé-registration
