@@ -15,10 +15,7 @@ from bpy.props import *
 import time
 import datetime
 
-from bpy.types import Operator, AddonPreferences, Panel, Menu
-
-tab=[]  #tableau auquel sera inclu les objets utilisant un materiel
-#originNbrScene=len(bpy.data.scenes)
+from bpy.types import AddonPreferences
 
 global FormatItem, maximise_minimase, maximise_minimase_Mat,stop,checked_render, animation_state, Exception_materials
 
@@ -29,42 +26,38 @@ stop = True #permet de savoir quand un rendu est fini
 maximise_minimase = True
 maximise_minimase_Mat = True
 
-FormatItem=[('H264 1440*1080', 'H264 4/3 HD1080', 'H264 1440*1080'), 
-                 ('PNG 800*600', 'PNG 4/3 LowRes 600', 'PNG 800*600'),
-				 ('PNG 1920*1080', 'PNG Full HD', 'PNG 1920*1080'),
-				 ('PNG 1280*720', 'PNG HD 720', 'PNG 1280*720')]
+FormatItem= [   ('H264 1440*1080', 'H264 4/3 HD1080', 'H264 1440*1080'), 
+                ('PNG 800*600', 'PNG 4/3 LowRes 600', 'PNG 800*600'),
+				('PNG 1920*1080', 'PNG Full HD', 'PNG 1920*1080'),
+				('PNG 1280*720', 'PNG HD 720', 'PNG 1280*720')]
 
 Exception_materials = [('Material','Material','Material')]                 
                  
 def MaterialCheck ():
-    scn = bpy.data.scenes[0]
-    materialError=False 
+    
     objs = []  
-    try:            
-        mat = bpy.context.object.active_material#essaye d'avoir le materiel actif   
-    except:
-        materialError=True  #si aucun materiel active
-        mat_str="No active object"   #fait un report d'erreur        
+    
+    if bpy.context.active_object == None:
+        return "No active object"   
+    elif bpy.context.active_object.type!='MESH':
+        return "Not a mesh"  
+    elif bpy.context.active_object.active_material == None:
+        return "Object has no material"  
     else:
-        if mat == None:     #si le materiel active = None -> objet actif pas de materiel  
-            materialError=True  #si aucun materiel activ
-            mat_str="Object has no material"   
-        else: #si aucune erreur de materiel est détecté
-            for obj in bpy.data.objects:    #pour tous les objet
-                for slot in obj.material_slots: #pour chaque slot de materiel par objet
-                    if slot.material == mat:    #si le materiel est le même que le materiel de l'objet actif 
-                        objs.append(obj.name)   #append le nom de l'objet 
-            mat_str = 'Active material: '+str(bpy.context.object.active_material.name)+\
-            ', '+"".join(str(x)+', ' for x in objs)        
-    return mat_str
-
+        for obj in bpy.data.objects:    #pour tous les objet
+            for slot in obj.material_slots: #pour chaque slot de materiel par objet
+                if slot.material == bpy.context.active_object.active_material:    #si le materiel est le même que le materiel de l'objet actif 
+                    objs.append(obj.name)   #append le nom de l'objet 
+    return ('Active material: '+str(bpy.context.object.active_material.name)+', '+"".join(str(x)+', ' for x in objs))
+              
 def check_obj_mat():
     all_mat=[]
     for obj in bpy.context.scene.objects:
         if obj.type=='MESH':
             for mat in obj.material_slots:
                 all_mat.append(mat.material)
-    return all_mat                
+    return all_mat 
+               
 def replace_obj_mat(mat_to_assign=[]):
     i=0
     for obj in bpy.context.scene.objects:
@@ -73,6 +66,9 @@ def replace_obj_mat(mat_to_assign=[]):
                 mat.material=mat_to_assign[i]
                 i=i+1 
 
+#
+#       Addon Preferences Class
+#
 class Tool_KitPreferences(AddonPreferences):
     bl_idname = __name__
 
@@ -162,7 +158,7 @@ class Tool_KitPreferences(AddonPreferences):
         sub.label(text="Other useful shortcut already implemented in blender")
 		
 #
-#    Menu in UI region
+#       Menu in UI region
 #
 class UIPanel(bpy.types.Panel):
     bl_label = "ToolKit"
@@ -174,7 +170,6 @@ class UIPanel(bpy.types.Panel):
     def draw(self, context):
         
         current_scn=bpy.context.scene
-        scn = bpy.data.scenes[0]   
         
         #for developpement 
         try: __name__
@@ -185,8 +180,7 @@ class UIPanel(bpy.types.Panel):
         layout = self.layout
         
         layout.template_reports_banner()
-        layout.template_running_jobs()   
-        
+        layout.template_running_jobs()           
         
         if preferences.tool_active_object_material==False and\
             preferences.tool_add_new_scene==False and\
@@ -221,7 +215,7 @@ class UIPanel(bpy.types.Panel):
             box = layout.box()  
             box.prop(bpy.context.scene, 'FormatFile', text=bpy.context.scene.name)
             box.operator("file.format")
-        
+                    
             box = box.box() 
             row=box.row()
             row = row.column(align=True)
@@ -244,8 +238,7 @@ class UIPanel(bpy.types.Panel):
             box.prop(bpy.context.scene,'AddRemoveRenderPath')          
             row = box.row(align = True)
             row.operator('to_render_path.add')
-            row.operator('to_render_path.remove')
-        
+            row.operator('to_render_path.remove')        
         
         if preferences.tool_add_new_scene == True:
             
@@ -275,8 +268,7 @@ class UIPanel(bpy.types.Panel):
             row = box.row(align = True)  
             
             row.operator("add.exception")  
-            row.operator("remove.exception")    
-   
+            row.operator("remove.exception")
         
         if preferences.tool_font_cleaning == True:
             
@@ -287,8 +279,7 @@ class UIPanel(bpy.types.Panel):
                 box.enabled=False     
                 box.label(text='Warning no Font yet', icon='ERROR')                     
             box.operator("font.clean", icon ='FILE_FONT')
-            box.prop(bpy.context.scene,'AllFont', text = 'Keep this font')
-                
+            box.prop(bpy.context.scene,'AllFont', text = 'Keep this font')                
         
         if preferences.tool_active_object_material == True:
             
@@ -296,54 +287,58 @@ class UIPanel(bpy.types.Panel):
             
             box = layout.box()  #créer une boxe pour les materiaux
             
-            materialobject = MaterialCheck()
-            
-            try:
-                tab = materialobject.rsplit(',')    # essai de faire un rsplit -> si fonctionne veux dire que tab comporte le nom de plusieurs objets -> tab = tableau des objets ayant le material actif
-            except:
-                tab=[str(materialobject)]   # sinon met la chaîne de char materialobject dans tab -> index de tab = 1
-            
-            for i in range(0, len(tab)):
+            materialobject = MaterialCheck()            
                
-                if materialobject in ("Object has no material","No active object"): #si materialobject contient un text 'erreur'
-                    try:
-                        bpy.context.active_object.type     #test de voir si il y a un objet actif
-                    except:
-                        box.label(text='No active object', icon='ERROR')    #erreur aucun objet actif
-                    else:    
-                        row=box.row()    
-                        if bpy.context.active_object.type != 'MESH':    #si l'objet actif n'est pas un mesh
-                            row.label(text='Active object is {0} not mesh'.format(bpy.context.active_object.type.title()),icon='ERROR')  #erreur objet non mesh
-                        else:    
-                            row.label(str(tab[i]),icon='ERROR')  # sinon objet = mesh mais pas de materiel              
-                elif i!=0 :
-                    if maximise_minimase_Mat == False:   
-                        if i != len(tab)-1:
-                            #row=box.row()       
-                            for scn in bpy.data.scenes:
-                                for obj in scn.objects:
-                                    if str(obj.name) == str(tab[i]).replace(' ',''):  
-                                        row=box.row()    
-                                        row.label(str(tab[i])+' ',icon='OBJECT_DATAMODE')
-                                        row.label(icon = 'FORWARD')
-                                        row.label(str(scn.name),icon='SCENE_DATA')
-                                        break
-                                        
+            if materialobject in ("Object has no material","No active object","Not a mesh"): #si materialobject contient un text 'erreur'
+                row=box.row() 
+                if materialobject == "Not a mesh":
+                    row.label(text='Active object is {0} not mesh'.format(bpy.context.active_object.type.title()),icon='ERROR')  #erreur objet non mesh
                 else:
-                    row=box.row()
-                    if maximise_minimase_Mat==True:
-                        row.label(str(tab[i])[:13]+'...',icon='MATERIAL')
+                    row.label(str(materialobject),icon='ERROR')  # sinon objet = mesh mais pas de materiel                      
+            else:
+                tab = materialobject.rsplit(',')  
+                for i in range(0, len(tab)):
+                    if i!=0 :
+                        if maximise_minimase_Mat == False:   
+                            if i != len(tab)-1:   
+                                for scn in bpy.data.scenes:
+                                    for obj in scn.objects:
+                                        if str(obj.name) == str(tab[i]).replace(' ',''): 
+                                            print (str(tab[i]),str(bpy.context.active_object.name))
+
+                                            if str(tab[i]) == (' '+str(bpy.context.active_object.name)) :
+                                                                                             
+                                                box2  =box.box()
+                                                row2 = box2.row()
+                                                
+                                                row2.label(str(tab[i])+' ',icon='OBJECT_DATAMODE')
+                                                row2.label(icon = 'FORWARD')                                        
+                                                row2.label(str(scn.name),icon='SCENE_DATA')
+                                            else:
+                                                row=box.row() 
+                                                row.label(str(tab[i])+' ',icon='OBJECT_DATAMODE')
+                                                row.label(icon = 'FORWARD')                                        
+                                                row.label(str(scn.name),icon='SCENE_DATA')    
+                                            break
+                                            
                     else:
-                        row.label(str(tab[i]),icon='MATERIAL')   
+                        row=box.row()
+                        if maximise_minimase_Mat==True:
+                            row.label(str(tab[i])[:13]+'...',icon='MATERIAL')
+                        else:
+                            row.label(str(tab[i]),icon='MATERIAL')   
            
             row = box.row()
             row.alignment = 'RIGHT'
             if maximise_minimase_Mat == True or bpy.context.active_object == None or bpy.context.active_object.active_material == None :
+                
                 try:
                     bpy.context.active_object.active_material.name
-                    row.enabled = True
                 except:
                     row.enabled = False  
+                else:
+                    row.enabled = True    
+                    
                 row.operator("max_min.matprop", icon='TRIA_DOWN', text='')              
             else:
                 row.operator("max_min.matprop", icon='TRIA_UP', text='')           
@@ -364,8 +359,14 @@ class UIPanel(bpy.types.Panel):
             
             if maximise_minimase == False or len(bpy.data.scenes) == 1: 
                 for NumberScene in bpy.data.scenes:     #va créer dynamiquement bpy.data.scenes[x].RenderTrue et créer une checkbox 
-                    row=box.row()
-                    row.prop(NumberScene, 'RenderTrue', text=NumberScene.name) 
+                    
+                    if str(NumberScene.name) == str(bpy.context.scene.name) :
+                        box2 = box.box()
+                        row2 = box2.row()
+                        row2.prop(NumberScene, 'RenderTrue', text=NumberScene.name)
+                    else: 
+                        row=box.row()
+                        row.prop(NumberScene, 'RenderTrue', text=NumberScene.name)   
             else:
                 row=box.row()
                 toPrint = (bpy.data.scenes[0].name[:-3]+'...')
@@ -373,8 +374,6 @@ class UIPanel(bpy.types.Panel):
                     row.label(str(toPrint), icon='CHECKBOX_HLT') 
                 else:
                     row.label(str(toPrint), icon='CHECKBOX_DEHLT') 
-
-                    
                       
             row=box.row()
             row.alignment = 'RIGHT'
@@ -400,8 +399,8 @@ class UIPanel(bpy.types.Panel):
                 pass
             else:    
                 box.prop(bpy.context.active_object,'show_wire',text='Show Wire')    #affiche le show_wire et double_sided
-                box.prop(bpy.context.object.data,'show_double_sided',text='Double sided') 
                 box.prop(bpy.context.object, 'show_all_edges',text='show all edges') 
+                box.prop(bpy.context.object.data,'show_double_sided',text='Double sided') 
             try:
                 bpy.context.active_object.active_material   #test si il y a un objet actif
             except:
@@ -422,7 +421,9 @@ class UIPanel(bpy.types.Panel):
                     row.operator('add.slot_material', text='',icon='ZOOMIN')
                     box.prop(bpy.context.object.active_material,'diffuse_color', text='Color')            
         
-        
+#
+#       All operator Classes
+#         
 class FileFormatButton(bpy.types.Operator):
     bl_idname = "file.format"
     bl_label = "Change all scene format file"
@@ -431,7 +432,6 @@ class FileFormatButton(bpy.types.Operator):
     def execute(self, context):
         active_scn = bpy.context.scene
         fileFormat=active_scn.FormatFile    #récupère la valeur de l'enum
-
 
         for i in range (0,len(bpy.data.scenes)):    #va passer dans toutes les scenes
             
@@ -485,12 +485,9 @@ class FileFormatRemove(bpy.types.Operator):
                     break
 
         bpy.types.Scene.FormatFile = bpy.props.EnumProperty(items=FormatItem)
-        active_scn.FormatFile=FormatItem[0][0]
-
-          
+        active_scn.FormatFile=FormatItem[0][0]          
         
-        return{'FINISHED'}            
-
+        return{'FINISHED'}          
  
 class CleanMaterialButton(bpy.types.Operator):
     bl_idname = "clean.material"
@@ -603,8 +600,7 @@ class CheckedSceneRenderButton(bpy.types.Operator): #fait un rendu des scenes se
         bpy.ops.view3d.render_and_execute()            
           
         return{'FINISHED'}        
-			
-    
+			    
 class AddException(bpy.types.Operator):
     bl_idname = "add.exception"
     bl_label = "Add exception material"
@@ -617,9 +613,6 @@ class AddException(bpy.types.Operator):
         Exception_materials.append((bpy.context.scene.MaterialException,bpy.context.scene.MaterialException,bpy.context.scene.MaterialException))
         bpy.types.Scene.ExceptionMaterials = bpy.props.EnumProperty(items=Exception_materials,options={'ENUM_FLAG'})
         
-           
-
-
         return{'FINISHED'}  
     
 class RemoveException(bpy.types.Operator):
@@ -636,9 +629,7 @@ class RemoveException(bpy.types.Operator):
         except:
              self.report({'ERROR'},('No exception material named : '+ str(bpy.context.scene.MaterialException)))        
         bpy.types.Scene.ExceptionMaterials = bpy.props.EnumProperty(items=Exception_materials,options={'ENUM_FLAG'})
-        
-      
-
+            
         return{'FINISHED'}     
      
 class add_slot_material(bpy.types.Operator): 
@@ -657,19 +648,16 @@ class add_slot_material(bpy.types.Operator):
         bpy.ops.material.new()      #ajoute le nouveau materiel
         
         for mat in bpy.data.materials:
-            mat_new.append(mat.name)  #rempli mat_new
-        
+            mat_new.append(mat.name)  #rempli mat_new        
             
         for old in mat_old: 
             for new in range (0,len(mat_new)):
                 if old == mat_new[new]:
                      mat_new[new] ='concordance'    #check les deux tableaux trouve le nouveaux materiel
-                                                    #remplace les materiaux deja existant par 'concordance' dans le tableau
-        
+                                                    #remplace les materiaux deja existant par 'concordance' dans le tableau        
         for new in mat_new:
             if new != 'concordance':
                 bpy.context.active_object.active_material=bpy.data.materials[new] #va assigner le seul materiel pas à double au mesh actif         
-
 
         return{'FINISHED'}     
     
@@ -681,6 +669,7 @@ class maximise_minimise_Scene(bpy.types.Operator):
     def execute(self, context): 
         global maximise_minimase
         maximise_minimase = not(maximise_minimase)
+        
         return{'FINISHED'}  
                
 class maximise_minimise_Mat(bpy.types.Operator): 
@@ -691,6 +680,7 @@ class maximise_minimise_Mat(bpy.types.Operator):
     def execute(self, context): 
         global maximise_minimase_Mat
         maximise_minimase_Mat = not(maximise_minimase_Mat)
+        
         return{'FINISHED'}                 
         
 class full_copy_material_correction(bpy.types.Operator): 
@@ -719,8 +709,6 @@ class clean_font(bpy.types.Operator):
                 obj.data.font_bold_italic=bpy.data.fonts[str(bpy.context.scene.AllFont)]
                 obj.data.font_italic=bpy.data.fonts[str(bpy.context.scene.AllFont)]
 
-
-
         return{'FINISHED'}   
     
 class clean_font(bpy.types.Operator): 
@@ -734,8 +722,8 @@ class clean_font(bpy.types.Operator):
             file_name=scn.render.filepath.rpartition('\\')[2]
             scn.render.filepath = bpy.context.scene.NewRenderPath+file_name
 
-
-        return{'FINISHED'}    
+        return{'FINISHED'} 
+       
 class renderpathadd(bpy.types.Operator): 
     bl_idname = "to_render_path.add"
     bl_label = "Add to path"
@@ -753,7 +741,6 @@ class renderpathadd(bpy.types.Operator):
         if not_added != []:
             self.report({'ERROR'},('Scenes : '+str(not_added)+' already have'+ bpy.context.scene.AddRemoveRenderPath+' in its path'))        
 
-
         return{'FINISHED'} 
        
 class renderpathremove(bpy.types.Operator): 
@@ -767,7 +754,6 @@ class renderpathremove(bpy.types.Operator):
             file_name=scn.render.filepath.rpartition('\\')[2]
             file_name=file_name.replace(bpy.context.scene.AddRemoveRenderPath,'')
             scn.render.filepath = scn.render.filepath.rpartition('\\')[0]+scn.render.filepath.rpartition('\\')[1]+file_name
-
 
         return{'FINISHED'}     
     
@@ -804,9 +790,7 @@ class disable_anim(bpy.types.Operator):
         
         global animation_state
         
-        animation_state = True
-        
-        
+        animation_state = True    
                
         return{'FINISHED'}                   
             
@@ -823,10 +807,10 @@ def register(): #fonction de registration
     bpy.utils.register_module(__name__) #registre les classes
     bpy.types.Scene.RenderTrue = bpy.props.BoolProperty(default=True)   #initialise scene.RenderTrue
     bpy.types.Scene.MaterialException = bpy.props.StringProperty(default='Material.001')    #initialise material.MaterialException
-    bpy.types.Scene.NewRenderPath = bpy.props.StringProperty(default='C:',subtype='DIR_PATH')  
+    bpy.types.Scene.NewRenderPath = bpy.props.StringProperty(default='/tmp\\', subtype='DIR_PATH')  
     bpy.types.Scene.AddRemoveRenderPath = bpy.props.StringProperty(default='High_resolution')  
     bpy.types.Scene.FormatFile = bpy.props.EnumProperty(items=FormatItem, default='H264 1440*1080')
-    bpy.types.Scene.ExceptionMaterials = bpy.props.EnumProperty(items=Exception_materials,options={'ENUM_FLAG'})
+    bpy.types.Scene.ExceptionMaterials = bpy.props.EnumProperty(items=Exception_materials,options={'ENUM_FLAG'}, default = {'Material'})
     bpy.types.Scene.AllFont = bpy.props.EnumProperty(items=AllFont)
  
 def unregister():   #fonction de dé-registration
