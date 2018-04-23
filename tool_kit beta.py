@@ -2,8 +2,8 @@ bl_info = {
     "name": "Tool Kit",
     "description": "Useful Tools",
     "author": "lucblender",
-    "version": (1, '10_beta'),
-    "blender": (2, 69, 0),
+    "version": (1, '11_beta'),
+    "blender": (2, 79, 0),
     "location": "Left UI",
     "warning": "", # used for warning icon and text in addons 
     "wiki_url": ""
@@ -421,9 +421,46 @@ class UIPanel(bpy.types.Panel):
                     row.operator('add.slot_material', text='',icon='ZOOMIN')
                     box.prop(bpy.context.object.active_material,'diffuse_color', text='Color')            
         
+  
+        if 1 == 1:
+            layout.label('Hide/Show particle System')
+            box = layout.box()
+            row = box.row(align = True)
+            row.operator('allparticlesystem.hide')
+            row.operator('allparticlesystem.show') 
 #
 #       All operator Classes
-#         
+#        
+
+import bpy
+
+
+            
+class HidePatrticleFromObject(bpy.types.Operator):
+    bl_idname = "allparticlesystem.hide"
+    bl_label = "Hide all particle system"
+    bl_description='Go in all objects and checks if particle modifier exist, if yes, hide it'
+    	
+    def execute(self, context):
+        for obj in bpy.context.scene.objects:
+            for mod in obj.modifiers:
+                if mod.type == 'PARTICLE_SYSTEM':
+                    mod.show_viewport = False
+        return{'FINISHED'} 
+
+class ShowPatrticleFromObject(bpy.types.Operator):
+    bl_idname = "allparticlesystem.show"
+    bl_label = "show all particle system"
+    bl_description='Go in all objects and checks if particle modifier exist, if yes, show it'
+	
+    def execute(self, context):
+        for obj in bpy.context.scene.objects:
+            for mod in obj.modifiers:
+                if mod.type == 'PARTICLE_SYSTEM':
+                    mod.show_viewport = True
+        return{'FINISHED'} 
+ 		
+ 
 class FileFormatButton(bpy.types.Operator):
     bl_idname = "file.format"
     bl_label = "Change all scene format file"
